@@ -14,7 +14,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -30,8 +37,11 @@ public class ClanServiceImpl implements ClanService {
     private final Map<String, Clan> clansByTag = new ConcurrentHashMap<>();
     private final Map<UUID, Clan> clansByMember = new ConcurrentHashMap<>();
 
-    public ClanServiceImpl(Plugin plugin, DatabaseManager databaseManager, PlayerProfileService profileService,
-                           PointsService pointsService, PluginConfig config) {
+    public ClanServiceImpl(Plugin plugin,
+                           DatabaseManager databaseManager,
+                           PlayerProfileService profileService,
+                           PointsService pointsService,
+                           PluginConfig config) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.profileService = profileService;
@@ -41,16 +51,23 @@ public class ClanServiceImpl implements ClanService {
     }
 
     private void loadAllClans() {
+        clansByUuid.clear();
+        clansByTag.clear();
+        clansByMember.clear();
+
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT * FROM clans");
+             PreparedStatement ps = conn.prepareStatement("SELECT id, uuid, tag, name, color, owner_uuid, created_at FROM clans");
              ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 UUID uuid = UUID.fromString(rs.getString("uuid"));
                 String tag = rs.getString("tag");
                 String name = rs.getString("name");
                 String color = rs.getString("color");
                 UUID ownerUuid = UUID.fromString(rs.getString("owner_uuid"));
-                Instant createdAt = Instant.ofEpochSecond(rs.getLong("created_at"));
+                long createdAtSeconds = rs.getLong("created_at");
+                Instant createdAt = Instant.ofEpochSecond(createdAtSeconds);
+
                 Clan clan = new Clan(uuid, tag, name, color, ownerUuid, createdAt);
                 clansByUuid.put(uuid, clan);
                 clansByTag.put(tag.toLowerCase(Locale.ROOT), clan);
@@ -58,44 +75,96 @@ public class ClanServiceImpl implements ClanService {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Nie udało się załadować klanów z bazy.", e);
         }
+
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT * FROM clan_members");
+             PreparedStatement ps = conn.prepareStatement("SELECT clan_id, player_uuid, role FROM clan_members");
              ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 int clanId = rs.getInt("clan_id");
                 String playerUuidStr = rs.getString("player_uuid");
                 String roleStr = rs.getString("role");
+
                 UUID playerUuid = UUID.fromString(playerUuidStr);
                 ClanRole role = ClanRole.valueOf(roleStr);
 
-                try (PreparedStatement clanStmt = conn.prepareStatement("SELECT uuid FROM clans WHERE id = ?")) {
-                    clanStmt.setInt(1, clanId);
-                    try (ResultSet clanRs = clanStmt.executeQuery()) {
-                        if (clanRs.next()) {
-                            UUID clanUuid = UUID.fromString(clanRs.getString("uuid"));
-                            Clan clan = clansByUuid.get(clanUuid);
-                            if (clan != null) {
-                                clan.setMemberRole(playerUuid, role);
-                                clansByMember.put(playerUuid, clan);
-                            }
-                        }
-                    }
+                UUID clanUuid = getClanUuidById(conn, clanId);
+                if (clanUuid == null) {
+                    continue;
                 }
+                Clan clan = clansByUuid.get(clanUuid);
+                if (clan == null) {
+                    continue;
+                }
+                clan.setMemberRole(playerUuid, role);
+                clansByMember.put(playerUuid, clan);
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Nie udało się załadować członków klanów.", e);
         }
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT clan_id, ally_clan_id FROM clan_allies");
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                int clanId = rs.getInt("clan_id");
+                int allyId = rs.getInt("ally_clan_id");
+
+                UUID clanUuid = getClanUuidById(conn, clanId);
+                UUID allyUuid = getClanUuidById(conn, allyId);
+                if (clanUuid == null || allyUuid == null) {
+                    continue;
+                }
+                Clan clan = clansByUuid.get(clanUuid);
+                Clan ally = clansByUuid.get(allyUuid);
+                if (clan == null || ally == null) {
+                    continue;
+                }
+                clan.addAlly(allyUuid);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Nie udało się załadować sojuszy klanów.", e);
+        }
+    }
+
+    private UUID getClanUuidById(Connection conn, int clanId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT uuid FROM clans WHERE id = ?")) {
+            ps.setInt(1, clanId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return UUID.fromString(rs.getString("uuid"));
+                }
+            }
+        }
+        return null;
+    }
+
+    private Integer getClanIdByUuid(Connection conn, UUID clanUuid) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM clans WHERE uuid = ?")) {
+            ps.setString(1, clanUuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
+        }
+        return null;
     }
 
     @Override
     public Optional<Clan> getClanByTag(String tag) {
-        if (tag == null) return Optional.empty();
+        if (tag == null) {
+            return Optional.empty();
+        }
         return Optional.ofNullable(clansByTag.get(tag.toLowerCase(Locale.ROOT)));
     }
 
     @Override
     public Optional<Clan> getClanByName(String name) {
-        if (name == null) return Optional.empty();
+        if (name == null) {
+            return Optional.empty();
+        }
         return clansByUuid.values().stream()
                 .filter(c -> c.getName().equalsIgnoreCase(name))
                 .findFirst();
@@ -119,7 +188,7 @@ public class ClanServiceImpl implements ClanService {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = databaseManager.getConnection()) {
-                int clanId;
+                Integer clanId;
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO clans(uuid, tag, name, color, owner_uuid, created_at) VALUES(?,?,?,?,?,?)"
                 )) {
@@ -131,14 +200,9 @@ public class ClanServiceImpl implements ClanService {
                     ps.setLong(6, now.getEpochSecond());
                     ps.executeUpdate();
                 }
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT id FROM clans WHERE uuid = ?"
-                )) {
-                    ps.setString(1, clanUuid.toString());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) return;
-                        clanId = rs.getInt("id");
-                    }
+                clanId = getClanIdByUuid(conn, clanUuid);
+                if (clanId == null) {
+                    return;
                 }
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO clan_members(clan_id, player_uuid, role, joined_at) VALUES(?,?,?,?)"
@@ -162,9 +226,10 @@ public class ClanServiceImpl implements ClanService {
         if (target.isOnline()) {
             Player online = target.getPlayer();
             if (online != null) {
-                online.sendMessage("Zostałeś dodany do klanu " + clan.getTag() + " przez " + inviter.getName() + ".");
+                online.sendMessage("Zostałeś zaproszony do klanu " + clan.getTag() + " przez " + inviter.getName() + ".");
             }
         }
+        // Aktualna implementacja: natychmiastowe dodanie do klanu.
         joinClanDirect(clan, target.getUniqueId());
     }
 
@@ -183,13 +248,9 @@ public class ClanServiceImpl implements ClanService {
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = databaseManager.getConnection()) {
-                int clanId;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT id FROM clans WHERE uuid = ?")) {
-                    ps.setString(1, clan.getUuid().toString());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (!rs.next()) return;
-                        clanId = rs.getInt("id");
-                    }
+                Integer clanId = getClanIdByUuid(conn, clan.getUuid());
+                if (clanId == null) {
+                    return;
                 }
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT OR REPLACE INTO clan_members(clan_id, player_uuid, role, joined_at) VALUES(?,?,?,?)"
@@ -209,26 +270,30 @@ public class ClanServiceImpl implements ClanService {
     @Override
     public void leaveClan(Player player) {
         Clan clan = clansByMember.remove(player.getUniqueId());
-        if (clan != null) {
-            clan.removeMember(player.getUniqueId());
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                try (Connection conn = databaseManager.getConnection();
-                     PreparedStatement ps = conn.prepareStatement(
-                             "DELETE FROM clan_members WHERE player_uuid = ?"
-                     )) {
-                    ps.setString(1, player.getUniqueId().toString());
-                    ps.executeUpdate();
-                } catch (SQLException e) {
-                    plugin.getLogger().log(Level.SEVERE, "Nie udało się usunąć gracza z klanu.", e);
-                }
-            });
+        if (clan == null) {
+            return;
         }
+        clan.removeMember(player.getUniqueId());
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "DELETE FROM clan_members WHERE player_uuid = ?"
+                 )) {
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się usunąć gracza z klanu.", e);
+            }
+        });
     }
 
     @Override
     public void kickMember(Player actor, OfflinePlayer target) {
         Clan clan = clansByMember.get(actor.getUniqueId());
-        if (clan == null) return;
+        if (clan == null) {
+            return;
+        }
 
         clansByMember.remove(target.getUniqueId());
         clan.removeMember(target.getUniqueId());
@@ -247,6 +312,121 @@ public class ClanServiceImpl implements ClanService {
     }
 
     @Override
+    public void dissolveClan(Clan clan) {
+        UUID clanUuid = clan.getUuid();
+        String tagKey = clan.getTag().toLowerCase(Locale.ROOT);
+
+        // Remove all members from map
+        for (UUID memberUuid : new ArrayList<>(clan.getMembers().keySet())) {
+            clansByMember.remove(memberUuid);
+        }
+
+        // Remove any alliances pointing to this clan
+        for (Clan other : clansByUuid.values()) {
+            if (!other.equals(clan)) {
+                other.removeAlly(clanUuid);
+            }
+        }
+
+        clansByUuid.remove(clanUuid);
+        clansByTag.remove(tagKey);
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection()) {
+                Integer clanId = getClanIdByUuid(conn, clanUuid);
+                if (clanId == null) {
+                    return;
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM clan_members WHERE clan_id = ?"
+                )) {
+                    ps.setInt(1, clanId);
+                    ps.executeUpdate();
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM clan_allies WHERE clan_id = ? OR ally_clan_id = ?"
+                )) {
+                    ps.setInt(1, clanId);
+                    ps.setInt(2, clanId);
+                    ps.executeUpdate();
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM clans WHERE id = ?"
+                )) {
+                    ps.setInt(1, clanId);
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się rozwiązać klanu w bazie danych.", e);
+            }
+        });
+    }
+
+    @Override
+    public void setAlliance(Clan clan, Clan otherClan, boolean allied) {
+        if (clan.getUuid().equals(otherClan.getUuid())) {
+            return;
+        }
+
+        UUID clanUuid = clan.getUuid();
+        UUID otherUuid = otherClan.getUuid();
+
+        if (allied) {
+            clan.addAlly(otherUuid);
+            otherClan.addAlly(clanUuid);
+        } else {
+            clan.removeAlly(otherUuid);
+            otherClan.removeAlly(clanUuid);
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection()) {
+                Integer clanId = getClanIdByUuid(conn, clanUuid);
+                Integer otherId = getClanIdByUuid(conn, otherUuid);
+                if (clanId == null || otherId == null) {
+                    return;
+                }
+                if (allied) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT OR IGNORE INTO clan_allies(clan_id, ally_clan_id) VALUES(?,?)"
+                    )) {
+                        ps.setInt(1, clanId);
+                        ps.setInt(2, otherId);
+                        ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT OR IGNORE INTO clan_allies(clan_id, ally_clan_id) VALUES(?,?)"
+                    )) {
+                        ps.setInt(1, otherId);
+                        ps.setInt(2, clanId);
+                        ps.executeUpdate();
+                    }
+                } else {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "DELETE FROM clan_allies WHERE (clan_id = ? AND ally_clan_id = ?) OR (clan_id = ? AND ally_clan_id = ?)"
+                    )) {
+                        ps.setInt(1, clanId);
+                        ps.setInt(2, otherId);
+                        ps.setInt(3, otherId);
+                        ps.setInt(4, clanId);
+                        ps.executeUpdate();
+                    }
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się zaktualizować sojuszu klanów.", e);
+            }
+        });
+    }
+
+    @Override
+    public boolean areAllied(Clan clan, Clan otherClan) {
+        return clan.getAllies().contains(otherClan.getUuid());
+    }
+
+    @Override
     public List<Clan> getTopClans(int page, int pageSize) {
         List<Clan> all = new ArrayList<>(clansByUuid.values());
         all.sort(Comparator.comparingDouble(this::getClanAveragePoints).reversed());
@@ -260,10 +440,12 @@ public class ClanServiceImpl implements ClanService {
 
     @Override
     public double getClanAveragePoints(Clan clan) {
-        if (clan.getMembers().isEmpty()) return 0.0;
+        if (clan.getMembers().isEmpty()) {
+            return 0.0;
+        }
         int sum = 0;
-        for (UUID member : clan.getMembers().keySet()) {
-            sum += pointsService.getPoints(member);
+        for (UUID memberUuid : clan.getMembers().keySet()) {
+            sum += pointsService.getPoints(memberUuid);
         }
         return sum / (double) clan.getMembers().size();
     }

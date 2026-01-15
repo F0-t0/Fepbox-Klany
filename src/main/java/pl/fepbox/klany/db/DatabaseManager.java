@@ -70,6 +70,13 @@ public class DatabaseManager {
                         PRIMARY KEY (clan_id, player_uuid)
                     )
                     """);
+            st.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS clan_allies (
+                        clan_id INTEGER NOT NULL,
+                        ally_clan_id INTEGER NOT NULL,
+                        PRIMARY KEY (clan_id, ally_clan_id)
+                    )
+                    """);
         }
         log.info("Zainicjalizowano bazę danych SQLite dla Fepbox-Klany.");
     }
@@ -84,4 +91,3 @@ public class DatabaseManager {
         }
     }
 }
-

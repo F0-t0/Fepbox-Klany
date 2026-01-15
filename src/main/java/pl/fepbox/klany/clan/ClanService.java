@@ -27,5 +27,10 @@ public interface ClanService {
     List<Clan> getTopClans(int page, int pageSize);
 
     double getClanAveragePoints(Clan clan);
-}
 
+    void dissolveClan(Clan clan);
+
+    void setAlliance(Clan clan, Clan otherClan, boolean allied);
+
+    boolean areAllied(Clan clan, Clan otherClan);
+}

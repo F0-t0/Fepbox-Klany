@@ -3,8 +3,10 @@ package pl.fepbox.klany.clan;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 public class Clan {
 
@@ -15,6 +17,7 @@ public class Clan {
     private final UUID ownerUuid;
     private final Instant createdAt;
     private final Map<UUID, ClanRole> members = new ConcurrentHashMap<>();
+    private final Set<UUID> allies = new CopyOnWriteArraySet<>();
 
     public Clan(UUID uuid, String tag, String name, String color, UUID ownerUuid, Instant createdAt) {
         this.uuid = uuid;
@@ -72,5 +75,20 @@ public class Clan {
     public void removeMember(UUID uuid) {
         members.remove(uuid);
     }
-}
 
+    public Set<UUID> getAllies() {
+        return Collections.unmodifiableSet(allies);
+    }
+
+    public void addAlly(UUID clanUuid) {
+        allies.add(clanUuid);
+    }
+
+    public void removeAlly(UUID clanUuid) {
+        allies.remove(clanUuid);
+    }
+
+    public void clearAllies() {
+        allies.clear();
+    }
+}
