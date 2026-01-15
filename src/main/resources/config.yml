@@ -1,0 +1,73 @@
+limits:
+  tagMaxLength: 4
+  nameMaxLength: 16
+
+filter:
+  allowedTagRegex: "^[A-Za-z0-9]{1,4}$"
+  allowedNameRegex: "^[A-Za-z0-9 _]{1,16}$"
+  blockedWords:
+    - "admin"
+    - "mod"
+    - "owner"
+
+points:
+  startPoints: 1000
+  minPoints: 0
+  maxPoints: 100000
+  killScaling:
+    baseReward: 20.0
+    factor: 0.02
+    minChange: 5
+    maxChange: 50
+  selfDeathLoss:
+    defaultLoss: 10
+    causes:
+      FALL: 15
+      LAVA: 20
+      DROWNING: 20
+      FIRE: 15
+      FIRE_TICK: 15
+      ENTITY_EXPLOSION: 20
+      BLOCK_EXPLOSION: 20
+      STARVATION: 25
+      CONTACT: 10
+
+ui:
+  skullSymbol: "💀"
+  titles:
+    kill:
+      title: "<symbol> ZABÓJSTWO <symbol>"
+      subtitleKiller: "+<delta_killer> | <points_killer_after> pkt"
+      subtitleVictim: "-<delta_victim> | <points_victim_after> pkt"
+    selfDeath:
+      title: "<symbol> ŚMIERĆ <symbol>"
+      subtitle: "-<delta_victim> | <points_victim_after> pkt"
+    timings:
+      fadeIn: 10
+      stay: 40
+      fadeOut: 10
+  messages:
+    kill:
+      killer: "&aZabiłeś &f<victim_name>&a! &7(+<delta_killer> pkt, masz teraz &f<points_killer_after>&7)"
+      victim: "&cZginąłeś z rąk &f<killer_name>&c! &7(-<delta_victim> pkt, masz teraz &f<points_victim_after>&7)"
+    selfDeath:
+      default: "&cZginąłeś! &7(-<delta_victim> pkt, masz teraz &f<points_victim_after>&7)"
+      causes:
+        FALL: "&cSpadłeś z wysoka! &7(-<delta_victim> pkt)"
+        LAVA: "&cWpadłeś do lawy! &7(-<delta_victim> pkt)"
+        DROWNING: "&cUtonąłeś! &7(-<delta_victim> pkt)"
+
+ranking:
+  pageSize: 10
+  playerFormat: "&e#<position> &f<player_name> &7- &b<points> pkt"
+  playerFormatSelf: "&6#<position> &f<player_name> &7- &a<points> pkt"
+  clanFormat: "&e#<position> &f<clan_display> &7- &b<points> pkt"
+  clanFormatSelf: "&6#<position> &f<clan_display> &7- &a<points> pkt"
+
+placeholders:
+  noClanText: "-"
+
+storage:
+  type: "sqlite"
+  file: "plugins/Fepbox-Klany/data.db"
+

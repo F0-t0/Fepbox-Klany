@@ -1,0 +1,110 @@
+package pl.fepbox.klany;
+
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
+import pl.fepbox.klany.clan.ClanService;
+import pl.fepbox.klany.clan.ClanServiceImpl;
+import pl.fepbox.klany.command.ClanCommand;
+import pl.fepbox.klany.command.FepboxKlanyAdminCommand;
+import pl.fepbox.klany.config.PluginConfig;
+import pl.fepbox.klany.config.PluginConfigLoader;
+import pl.fepbox.klany.db.DatabaseManager;
+import pl.fepbox.klany.listener.PlayerCombatListener;
+import pl.fepbox.klany.listener.PlayerConnectionListener;
+import pl.fepbox.klany.placeholder.FepboxKlanyPlaceholderExpansion;
+import pl.fepbox.klany.points.PointsService;
+import pl.fepbox.klany.points.PointsServiceImpl;
+import pl.fepbox.klany.player.PlayerProfileService;
+import pl.fepbox.klany.player.PlayerProfileServiceImpl;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class FepboxKlanyPlugin extends JavaPlugin {
+
+    private PluginConfig configModel;
+    private DatabaseManager databaseManager;
+    private PlayerProfileService profileService;
+    private PointsService pointsService;
+    private ClanService clanService;
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+
+        Logger logger = getLogger();
+        logger.info("Ładowanie konfiguracji Fepbox-Klany...");
+        PluginConfigLoader configLoader = new PluginConfigLoader(this);
+        this.configModel = configLoader.load();
+
+        try {
+            this.databaseManager = new DatabaseManager(this, configModel.getStorage());
+            this.databaseManager.initialize();
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Nie udało się zainicjalizować bazy danych, wyłączam plugin.", e);
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        this.profileService = new PlayerProfileServiceImpl(this, databaseManager, configModel.getPoints());
+        this.pointsService = new PointsServiceImpl(this, databaseManager, configModel.getPoints());
+        this.clanService = new ClanServiceImpl(this, databaseManager, profileService, pointsService, configModel);
+
+        getServer().getPluginManager().registerEvents(
+                new PlayerConnectionListener(profileService),
+                this
+        );
+        getServer().getPluginManager().registerEvents(
+                new PlayerCombatListener(this, profileService, pointsService, clanService, configModel),
+                this
+        );
+
+        if (getCommand("klan") != null) {
+            ClanCommand clanCommand = new ClanCommand(this, clanService, pointsService, profileService, configModel);
+            getCommand("klan").setExecutor(clanCommand);
+            getCommand("klan").setTabCompleter(clanCommand);
+        }
+        if (getCommand("fepboxklany") != null) {
+            FepboxKlanyAdminCommand adminCommand = new FepboxKlanyAdminCommand(this, clanService, pointsService, profileService, configModel);
+            getCommand("fepboxklany").setExecutor(adminCommand);
+            getCommand("fepboxklany").setTabCompleter(adminCommand);
+        }
+
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new FepboxKlanyPlaceholderExpansion(this, profileService, clanService, pointsService, configModel).register();
+            logger.info("Zarejestrowano PlaceholderAPI expansion dla Fepbox-Klany.");
+        } else {
+            logger.info("PlaceholderAPI nie znaleziono, placeholdery Fepbox-Klany nie będą dostępne.");
+        }
+
+        logger.info("Plugin Fepbox-Klany został pomyślnie włączony.");
+    }
+
+    @Override
+    public void onDisable() {
+        if (databaseManager != null) {
+            try {
+                databaseManager.shutdown();
+            } catch (Exception e) {
+                getLogger().log(Level.SEVERE, "Błąd podczas zamykania bazy danych.", e);
+            }
+        }
+    }
+
+    public PluginConfig getConfigModel() {
+        return configModel;
+    }
+
+    public PlayerProfileService getProfileService() {
+        return profileService;
+    }
+
+    public PointsService getPointsService() {
+        return pointsService;
+    }
+
+    public ClanService getClanService() {
+        return clanService;
+    }
+}
+

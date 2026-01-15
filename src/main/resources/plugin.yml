@@ -1,0 +1,53 @@
+name: Fepbox-Klany
+main: pl.fepbox.klany.FepboxKlanyPlugin
+version: 1.0.0
+api-version: '1.21'
+author: Fepbox
+description: System klanów i ranking PvP
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  klan:
+    description: Główna komenda systemu klanów.
+    usage: /klan help
+    aliases: [clan, klany]
+    permission: fepboxklany.use
+  fepboxklany:
+    description: Komendy administracyjne Fepbox-Klany.
+    usage: /fepboxklany admin help
+    permission: fepboxklany.admin.base
+
+permissions:
+  fepboxklany.use:
+    description: Podstawowy dostęp do komend pluginu.
+    default: true
+  fepboxklany.clan.*:
+    description: Wszystkie komendy klanowe.
+    default: op
+    children:
+      fepboxklany.clan.create: true
+      fepboxklany.clan.invite: true
+      fepboxklany.clan.join: true
+      fepboxklany.clan.leave: true
+      fepboxklany.clan.kick: true
+      fepboxklany.clan.info: true
+      fepboxklany.clan.top: true
+      fepboxklany.clan.points: true
+  fepboxklany.admin.*:
+    description: Wszystkie komendy administracyjne.
+    default: op
+    children:
+      fepboxklany.admin.base: true
+      fepboxklany.admin.forcejoin: true
+      fepboxklany.admin.forcekick: true
+      fepboxklany.admin.rename: true
+      fepboxklany.admin.retag: true
+      fepboxklany.admin.setpoints: true
+      fepboxklany.admin.addpoints: true
+      fepboxklany.admin.recalc: true
+      fepboxklany.reload: true
+  fepboxklany.reload:
+    description: Pozwala przeładować konfigurację pluginu.
+    default: op
+

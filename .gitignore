@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.cache/
+*.log
+target/
+.idea/
+*.iml
+.DS_Store
+/plugins/
