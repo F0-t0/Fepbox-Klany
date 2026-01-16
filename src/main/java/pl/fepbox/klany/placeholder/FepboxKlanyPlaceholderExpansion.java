@@ -67,7 +67,7 @@ public class FepboxKlanyPlaceholderExpansion extends PlaceholderExpansion {
         }
         if (params.equalsIgnoreCase("klan_display")) {
             Optional<Clan> clan = clanService.getClanByPlayer(player.getUniqueId());
-            return clan.map(c -> c.getColor() + "[" + c.getTag() + "] " + c.getName()).orElse(noClan);
+            return clan.map(c -> c.getColor() + "[" + c.getTag() + "]").orElse(noClan);
         }
         if (params.equalsIgnoreCase("points")) {
             return String.valueOf(pointsService.getPoints(player.getUniqueId()));
@@ -83,4 +83,3 @@ public class FepboxKlanyPlaceholderExpansion extends PlaceholderExpansion {
         return null;
     }
 }
-

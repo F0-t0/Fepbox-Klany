@@ -21,6 +21,7 @@ public class PointsServiceImpl implements PointsService {
     private final DatabaseManager databaseManager;
     private final PointsConfig config;
     private final Map<UUID, Integer> cache = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastKillTimestamps = new ConcurrentHashMap<>();
 
     public PointsServiceImpl(Plugin plugin, DatabaseManager databaseManager, PointsConfig config) {
         this.plugin = plugin;
@@ -68,6 +69,14 @@ public class PointsServiceImpl implements PointsService {
         int killerPoints = getPoints(killerUuid);
         int victimPoints = getPoints(victimUuid);
 
+        String key = killerUuid.toString() + ":" + victimUuid;
+        long now = System.currentTimeMillis();
+        long windowMillis = 30L * 60L * 1000L; // 30 minut
+        Long last = lastKillTimestamps.get(key);
+        if (last != null && (now - last) < windowMillis) {
+            return new KillResult(0, 0, killerPoints, victimPoints);
+        }
+
         int delta = computeKillDelta(killerPoints, victimPoints);
         int killerAfter = clamp(killerPoints + delta);
         int victimDelta = -delta;
@@ -78,6 +87,8 @@ public class PointsServiceImpl implements PointsService {
 
         saveAsync(killerUuid, killerAfter);
         saveAsync(victimUuid, victimAfter);
+
+        lastKillTimestamps.put(key, now);
 
         return new KillResult(delta, victimDelta, killerAfter, victimAfter);
     }
@@ -128,4 +139,3 @@ public class PointsServiceImpl implements PointsService {
         });
     }
 }
-

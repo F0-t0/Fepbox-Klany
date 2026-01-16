@@ -33,4 +33,12 @@ public interface ClanService {
     void setAlliance(Clan clan, Clan otherClan, boolean allied);
 
     boolean areAllied(Clan clan, Clan otherClan);
+
+    void updateClanColor(Clan clan, String color);
+
+    void removeMemberFromClan(java.util.UUID playerUuid);
+
+    void renameClan(Clan clan, String newName);
+
+    void retagClan(Clan clan, String newTag);
 }

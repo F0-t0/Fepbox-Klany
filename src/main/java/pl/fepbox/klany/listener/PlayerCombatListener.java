@@ -38,7 +38,7 @@ public class PlayerCombatListener implements Listener {
         if (killer != null && !killer.equals(victim)) {
             handleKill(victim, killer, event);
         } else {
-            handleSelfDeath(victim, event.getEntity().getLastDamageCause());
+            handleSelfDeath(victim, event);
         }
     }
 
@@ -47,9 +47,12 @@ public class PlayerCombatListener implements Listener {
 
         TitlesConfig titles = config.getUi().getTitles();
         TitlesConfig.KillTitleConfig killCfg = titles.getKill();
+        TitlesConfig.SelfDeathTitleConfig selfCfg = titles.getSelfDeath();
         String symbol = config.getUi().getSkullSymbol();
 
-        String titleText = killCfg.getTitle().replace("<symbol>", symbol);
+        String killerTitle = killCfg.getTitle().replace("<symbol>", symbol);
+        String victimTitle = selfCfg.getTitle().replace("<symbol>", symbol);
+
         String killerSub = killCfg.getSubtitleKiller()
                 .replace("<delta_killer>", String.valueOf(result.getKillerDelta()))
                 .replace("<points_killer_after>", String.valueOf(result.getKillerAfter()));
@@ -61,8 +64,8 @@ public class PlayerCombatListener implements Listener {
         int stay = titles.getTimings().getStay();
         int fadeOut = titles.getTimings().getFadeOut();
 
-        killer.sendTitle(titleText, killerSub, fadeIn, stay, fadeOut);
-        victim.sendTitle(titleText, victimSub, fadeIn, stay, fadeOut);
+        killer.sendTitle(killerTitle, killerSub, fadeIn, stay, fadeOut);
+        victim.sendTitle(victimTitle, victimSub, fadeIn, stay, fadeOut);
 
         String killerMsg = plugin.getConfig().getString("ui.messages.kill.killer",
                 "&aZabiłeś &f<victim_name>&a! &7(+<delta_killer> pkt, masz teraz &f<points_killer_after>&7)");
@@ -80,10 +83,20 @@ public class PlayerCombatListener implements Listener {
         killer.sendMessage(colorize(killerMsg));
         victim.sendMessage(colorize(victimMsg));
 
-        event.setDeathMessage(null);
+        String broadcast = plugin.getConfig().getString(
+                "ui.messages.kill.broadcast",
+                "&f<victim_name> &7(-<delta_victim>) został zabity przez &f<killer_name> &7(+<delta_killer>)"
+        );
+        broadcast = broadcast
+                .replace("<victim_name>", victim.getName())
+                .replace("<killer_name>", killer.getName())
+                .replace("<delta_killer>", String.valueOf(result.getKillerDelta()))
+                .replace("<delta_victim>", String.valueOf(-result.getVictimDelta()));
+        event.setDeathMessage(colorize(broadcast));
     }
 
-    private void handleSelfDeath(Player victim, EntityDamageEvent lastDamage) {
+    private void handleSelfDeath(Player victim, PlayerDeathEvent event) {
+        EntityDamageEvent lastDamage = event.getEntity().getLastDamageCause();
         EntityDamageEvent.DamageCause cause = lastDamage != null ? lastDamage.getCause() : EntityDamageEvent.DamageCause.CUSTOM;
         int loss = pointsService.applySelfDeath(victim.getUniqueId(), cause);
         int after = pointsService.getPoints(victim.getUniqueId());
@@ -111,6 +124,18 @@ public class PlayerCombatListener implements Listener {
         msg = msg.replace("<delta_victim>", String.valueOf(loss))
                 .replace("<points_victim_after>", String.valueOf(after));
         victim.sendMessage(colorize(msg));
+
+        String broadcast = plugin.getConfig().getString(
+                "ui.messages.selfDeath.broadcast." + cause.name(),
+                plugin.getConfig().getString(
+                        "ui.messages.selfDeath.broadcast.default",
+                        "&f<victim_name> &7(-<delta_victim>) zginął."
+                )
+        );
+        broadcast = broadcast
+                .replace("<victim_name>", victim.getName())
+                .replace("<delta_victim>", String.valueOf(loss));
+        event.setDeathMessage(colorize(broadcast));
     }
 
     private String colorize(String input) {

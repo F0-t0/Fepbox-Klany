@@ -229,7 +229,6 @@ public class ClanServiceImpl implements ClanService {
                 online.sendMessage("Zostałeś zaproszony do klanu " + clan.getTag() + " przez " + inviter.getName() + ".");
             }
         }
-        // Aktualna implementacja: natychmiastowe dodanie do klanu.
         joinClanDirect(clan, target.getUniqueId());
     }
 
@@ -316,12 +315,10 @@ public class ClanServiceImpl implements ClanService {
         UUID clanUuid = clan.getUuid();
         String tagKey = clan.getTag().toLowerCase(Locale.ROOT);
 
-        // Remove all members from map
         for (UUID memberUuid : new ArrayList<>(clan.getMembers().keySet())) {
             clansByMember.remove(memberUuid);
         }
 
-        // Remove any alliances pointing to this clan
         for (Clan other : clansByUuid.values()) {
             if (!other.equals(clan)) {
                 other.removeAlly(clanUuid);
@@ -427,6 +424,25 @@ public class ClanServiceImpl implements ClanService {
     }
 
     @Override
+    public void updateClanColor(Clan clan, String color) {
+        clan.setColor(color);
+        UUID clanUuid = clan.getUuid();
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "UPDATE clans SET color = ? WHERE uuid = ?"
+                 )) {
+                ps.setString(1, color);
+                ps.setString(2, clanUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się zaktualizować koloru klanu w bazie danych.", e);
+            }
+        });
+    }
+
+    @Override
     public List<Clan> getTopClans(int page, int pageSize) {
         List<Clan> all = new ArrayList<>(clansByUuid.values());
         all.sort(Comparator.comparingDouble(this::getClanAveragePoints).reversed());
@@ -448,6 +464,71 @@ public class ClanServiceImpl implements ClanService {
             sum += pointsService.getPoints(memberUuid);
         }
         return sum / (double) clan.getMembers().size();
+    }
+
+    @Override
+    public void removeMemberFromClan(UUID playerUuid) {
+        Clan clan = clansByMember.remove(playerUuid);
+        if (clan == null) {
+            return;
+        }
+        clan.removeMember(playerUuid);
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "DELETE FROM clan_members WHERE player_uuid = ?"
+                 )) {
+                ps.setString(1, playerUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się usunąć gracza z klanu (admin).", e);
+            }
+        });
+    }
+
+    @Override
+    public void renameClan(Clan clan, String newName) {
+        clan.setName(newName);
+        UUID clanUuid = clan.getUuid();
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "UPDATE clans SET name = ? WHERE uuid = ?"
+                 )) {
+                ps.setString(1, newName);
+                ps.setString(2, clanUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się zmienić nazwy klanu w bazie danych.", e);
+            }
+        });
+    }
+
+    @Override
+    public void retagClan(Clan clan, String newTag) {
+        String oldKey = clan.getTag().toLowerCase(Locale.ROOT);
+        String newKey = newTag.toLowerCase(Locale.ROOT);
+
+        clansByTag.remove(oldKey);
+        clan.setTag(newTag);
+        clansByTag.put(newKey, clan);
+
+        UUID clanUuid = clan.getUuid();
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "UPDATE clans SET tag = ? WHERE uuid = ?"
+                 )) {
+                ps.setString(1, newTag);
+                ps.setString(2, clanUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Nie udało się zmienić tagu klanu w bazie danych.", e);
+            }
+        });
     }
 }
 

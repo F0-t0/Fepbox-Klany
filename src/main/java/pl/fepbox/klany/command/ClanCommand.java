@@ -60,6 +60,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             case "wyrzuc" -> handleKick(player, args);
             case "rozwiaz" -> handleDissolve(player);
             case "sojusz" -> handleAlly(player, args);
+            case "kolor" -> handleColor(player, args);
             default -> sendHelp(player);
         }
         return true;
@@ -74,6 +75,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§6/klan wyrzuc <gracz> §7- wyrzuca gracza z klanu (leader)");
         player.sendMessage("§6/klan rozwiaz §7- rozwiązuje klan (leader)");
         player.sendMessage("§6/klan sojusz <tag|nazwa> §7- przełącza sojusz z innym klanem (leader)");
+        player.sendMessage("§6/klan kolor <kod> §7- ustawia kolor klanu (leader, np. &a)");
     }
 
     private void handleCreate(Player player, String[] args) {
@@ -257,10 +259,42 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleColor(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage("§cUżycie: /klan kolor <kod_koloru>");
+            player.sendMessage("§7Przykład: §f/klan kolor &a §7ustawi kolor zielony.");
+            return;
+        }
+        Optional<Clan> clanOpt = clanService.getClanByPlayer(player.getUniqueId());
+        if (clanOpt.isEmpty()) {
+            player.sendMessage("§cNie masz klanu.");
+            return;
+        }
+        Clan clan = clanOpt.get();
+        if (!clan.getOwnerUuid().equals(player.getUniqueId())) {
+            player.sendMessage("§cTylko lider klanu może zmieniać kolor klanu.");
+            return;
+        }
+        String code = args[1];
+        if (code.length() < 2) {
+            player.sendMessage("§cNieprawidłowy kod koloru. Użyj np. &a, &b, &c.");
+            return;
+        }
+        char c = Character.toLowerCase(code.charAt(code.length() - 1));
+        String valid = "0123456789abcdef";
+        if (!valid.contains(String.valueOf(c))) {
+            player.sendMessage("§cNieprawidłowy kod koloru. Dozwolone: 0-9, a-f.");
+            return;
+        }
+        String color = "§" + c;
+        clanService.updateClanColor(clan, color);
+        player.sendMessage("§aUstawiono kolor klanu na " + color + "ten kolor§a.");
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            List<String> base = List.of("zaloz", "info", "punkty", "zapros", "opusc", "wyrzuc", "rozwiaz", "sojusz");
+            List<String> base = List.of("zaloz", "info", "punkty", "zapros", "opusc", "wyrzuc", "rozwiaz", "sojusz", "kolor");
             String prefix = args[0].toLowerCase(Locale.ROOT);
             List<String> out = new ArrayList<>();
             for (String s : base) {
@@ -281,10 +315,8 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
             }
             return names;
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("sojusz")) {
-            List<String> tags = new ArrayList<>();
-            // Brak bezpośredniego dostępu do listy klanów, więc pozostawiamy pustą listę / manualne wpisanie.
-            return tags;
+        if (args.length == 2 && args[0].equalsIgnoreCase("kolor")) {
+            return List.of("&0", "&1", "&2", "&3", "&4", "&5", "&6", "&7", "&8", "&9", "&a", "&b", "&c", "&d", "&e", "&f");
         }
         return Collections.emptyList();
     }

@@ -1,84 +1,73 @@
 # Fepbox-Klany
 
 System klanów i ranking punktów PvP dla serwerów Minecraft Paper/Spigot 1.21.4.  
-Plugin zapewnia produkcyjny system klanów, punkty PvP (Elo‑like), integrację z PlaceholderAPI, rozbudowaną konfigurację oraz tytuły po zabójstwie i śmierci, z obsługą sojuszy między klanami.
+Plugin zapewnia produkcyjny system klanów, punkty PvP (Elo‑like), integrację z PlaceholderAPI, rozbudowaną konfigurację, tytuły po zabójstwie i śmierci oraz sojusze między klanami.
 
 ## Wymagania
 
 - **Serwer**: Paper/Spigot 1.21.4 (lub kompatybilny z `api-version: 1.21`)
-- **Java**: 21 (zgodnie z konfiguracją Mavena)
+- **Java**: 21
 - **Opcjonalnie**: [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) – placeholdery klanów i punktów
 
 ## Funkcje
 
 - Klany z tagiem, nazwą, kolorem i rolami (leader/officer/member).
 - Punkty PvP dla graczy (start domyślnie 1000), ranking graczy i klanów.
-- Punkty klanu liczone jako średnia punktów członków (zawsze spójna z danymi).
+- Punkty klanu liczone jako średnia punktów członków (spójne z danymi).
 - Algorytm zmiany punktów zależny od różnicy rankingów (skalowanie, clamp min/max).
 - Kary za śmierć bez zabójcy (upadek, lawa, utonięcie itd.) z osobnymi komunikatami.
-- Tytuły (Title + Subtitle) po zabójstwie i śmierci z prawdziwą emotką 💀 (konfigurowalną).
+- Tytuły (Title + Subtitle) po zabójstwie i śmierci z emotką 💀 (konfigurowalną).
 - Integracja z PlaceholderAPI (tag/nazwa/kolor/średnia klanu, punkty gracza, formatowane punkty).
-- Sojusze między klanami (dwustronne, zapisywane w bazie, komenda `/klan sojusz`).
+- Sojusze między klanami (dwustronne, komenda `/klan sojusz`).
+- Zmiana koloru klanu komendą `/klan kolor`.
 - Storage SQLite (`plugins/Fepbox-Klany/data.db`), wszystkie operacje DB asynchronicznie, z cache w pamięci.
 
 ## Instalacja (serwer)
 
-1. Zbuduj plugin lub pobierz gotowy `.jar`:
-   - Build lokalnie: `mvn clean package`
-   - Wynik znajdziesz w `target/Fepbox-Klany-1.0.0.jar`
-2. Skopiuj `Fepbox-Klany-1.0.0.jar` do katalogu `plugins/` serwera.
-3. (Opcjonalnie) Zainstaluj PlaceholderAPI, jeśli chcesz używać placeholderów.
+1. Zbuduj plugin:
+   ```bash
+   mvn clean package
+   ```
+   Wynik: `target/Fepbox-Klany-1.0.0.jar`
+2. Skopiuj `Fepbox-Klany-1.0.0.jar` do `plugins/` serwera.
+3. (Opcjonalnie) Zainstaluj PlaceholderAPI.
 4. Uruchom serwer – plugin utworzy:
    - `plugins/Fepbox-Klany/config.yml`
    - `plugins/Fepbox-Klany/data.db`
 
 ## Budowanie (deweloper)
 
-Projekt oparty jest o Maven.
-
-Najważniejsze informacje z `pom.xml`:
+Najważniejsze z `pom.xml`:
 
 - `groupId`: `pl.fepbox`
 - `artifactId`: `Fepbox-Klany`
 - `version`: `1.0.0`
 - Zależności:
   - `org.spigotmc:spigot-api:1.21.4-R0.1-SNAPSHOT` (scope `provided`)
-  - `me.clip:placeholderapi:2.11.6` (scope `provided`, repozytorium `https://repo.extendedclip.com/content/repositories/placeholderapi/`)
-  - `org.xerial:sqlite-jdbc` (wpakowane przez maven-shade-plugin, z relokacją)
+  - `me.clip:placeholderapi:2.11.6` (scope `provided`, repo: `https://repo.extendedclip.com/content/repositories/placeholderapi/`)
+  - `org.xerial:sqlite-jdbc` (shade + relokacja)
 
-Budowanie:
-
-```bash
-mvn clean package
-```
-
-Wymagane jest lokalne API Spigot/Paper 1.21.4 (np. przez BuildTools lub paperweight).
+Wymagane jest lokalne API Spigot/Paper 1.21.4.
 
 ## Konfiguracja
 
-Plik `config.yml` generuje się przy pierwszym uruchomieniu. Kluczowe sekcje:
+Najważniejsze sekcje `config.yml`:
 
-- `limits` – limity długości:
-  - `tagMaxLength` – maksymalna długość tagu (domyślnie 4)
-  - `nameMaxLength` – maksymalna długość nazwy klanu (domyślnie 16)
-- `filter` – walidacja nazw:
-  - `allowedTagRegex` – regex dopuszczalnych znaków taga
-  - `allowedNameRegex` – regex nazwy klanu
-  - `blockedWords` – lista zbanowanych słów (case‑insensitive)
-- `points` – punkty PvP:
-  - `startPoints` – punkty startowe nowego gracza
-  - `minPoints` / `maxPoints` – clamp globalny
-  - `killScaling` – algorytm nagrody za zabójstwo:
-    - `baseReward`, `factor`, `minChange`, `maxChange`
-  - `selfDeathLoss` – kary za śmierć własną:
-    - `defaultLoss`
-    - `causes.<DAMAGE_CAUSE>` – per przyczyna (np. `FALL`, `LAVA`, `DROWNING`, ...)
-- `ui` – tytuły i wiadomości:
-  - `skullSymbol` – emotka używana w tytułach (domyślnie 💀)
-  - `titles.kill` / `titles.selfDeath` – szablony Title / Subtitle
-  - `titles.timings` – `fadeIn`, `stay`, `fadeOut` (ticki)
-  - `messages.kill` / `messages.selfDeath` – wiadomości czatu (kolory `&`)
-- `ranking` – top-listy:
+- `limits` – limity:
+  - `tagMaxLength` – długość tagu (domyślnie 4)
+  - `nameMaxLength` – długość nazwy klanu (domyślnie 16)
+- `filter` – walidacja:
+  - `allowedTagRegex`, `allowedNameRegex`
+  - `blockedWords` – lista zbanowanych słów
+- `points`:
+  - `startPoints`, `minPoints`, `maxPoints`
+  - `killScaling.baseReward`, `factor`, `minChange`, `maxChange`
+  - `selfDeathLoss.defaultLoss`, `selfDeathLoss.causes.<DAMAGE_CAUSE>`
+- `ui`:
+  - `skullSymbol` – emotka (domyślnie 💀)
+  - `titles.kill`, `titles.selfDeath`, `titles.timings`
+  - `messages.kill`, `messages.selfDeath`
+- `ranking`:
   - `pageSize`
   - `playerFormat`, `playerFormatSelf`, `clanFormat`, `clanFormatSelf`
 - `placeholders`:
@@ -92,7 +81,7 @@ Plik `config.yml` generuje się przy pierwszym uruchomieniu. Kluczowe sekcje:
 ### Gracz (`/klan`)
 
 - `/klan zaloz <TAG> <NAZWA>`  
-  Tworzy nowy klan (walidacja tagu/nazwy, blokada duplikatów).
+  Tworzy nowy klan (walidacja + blokada duplikatów).
 
 - `/klan info [klan|tag]`  
   Informacje o klanie:
@@ -100,32 +89,38 @@ Plik `config.yml` generuje się przy pierwszym uruchomieniu. Kluczowe sekcje:
   - z argumentem – klan po tagu lub nazwie.
 
 - `/klan punkty [gracz]`  
-  Pokazuje punkty PvP:
-  - bez argumentu – własne punkty,
-  - z argumentem – punkty wskazanego, online gracza.
+  Punkty PvP:
+  - bez argumentu – własne,
+  - z argumentem – wybranego, online gracza.
 
 - `/klan zapros <gracz>`  
-  Lider zaprasza (w tej wersji: od razu dodaje) gracza do swojego klanu. Wysyłana jest wiadomość do zapraszanego.
+  Lider zaprasza (w tej wersji: od razu dodaje) gracza do swojego klanu.
 
 - `/klan opusc`  
-  Gracz opuszcza swój klan. Lider nie może opuścić klanu, jeśli są inni członkowie – powinien przekazać lidera lub użyć `/klan rozwiaz`.
+  Gracz opuszcza swój klan. Lider nie może wyjść, jeśli są inni członkowie (najpierw przekazanie lidera lub `/klan rozwiaz`).
 
 - `/klan wyrzuc <gracz>`  
   Lider wyrzuca gracza ze swojego klanu (nie można wyrzucić siebie).
 
 - `/klan rozwiaz`  
-  Lider rozwiązuje swój klan – usuwa wszystkich członków, sojusze oraz wpis klanu z bazy danych.
+  Lider rozwiązuje swój klan – usuwa członków, sojusze i rekord klanu z bazy.
 
 - `/klan sojusz <tag|nazwa>`  
-  Lider przełącza (toggle) sojusz z innym klanem: jeśli sojusz istnieje – zostaje zerwany, w przeciwnym razie zostaje zawarty. Relacja zapisywana jest dwustronnie.
+  Lider przełącza (toggle) sojusz z innym klanem:
+  - jeśli sojusz istnieje – jest zrywany,
+  - jeśli nie istnieje – jest tworzony.
+
+- `/klan kolor <kod>`  
+  Lider ustawia kolor klanu, np. `&a`, `&b`, `&c`.  
+  Kolor jest przechowywany jako `§x` i używany m.in. w placeholderze `%fepbox_klan_display%`.
 
 ### Admin (`/fepboxklany admin`)
 
 - `/fepboxklany admin setpoints <gracz> <wartosc>`  
-  Ustawia dokładną wartość punktów PvP danego gracza.
+  Ustawia dokładną liczbę punktów PvP.
 
 - `/fepboxklany admin addpoints <gracz> <wartosc>`  
-  Dodaje (lub odejmuje, jeśli wartość jest ujemna) punkty PvP graczowi.
+  Dodaje / odejmuje punkty PvP.
 
 ## Permisje
 
@@ -158,55 +153,51 @@ Zdefiniowane w `plugin.yml`:
 
 ## Placeholdery (PlaceholderAPI)
 
-Identifier: `fepbox`  
-Przykładowe placeholdery:
+Identifier: `fepbox`
 
 - `%fepbox_klan_tag%` – tag klanu gracza (lub `noClanText`).
-- `%fepbox_klan_name%` – nazwa klanu gracza.
-- `%fepbox_klan_color%` – kolor klanu (np. `§a`).
-- `%fepbox_klan_display%` – sformatowany klan, np. `[TAG] Nazwa` z kolorem.
-- `%fepbox_points%` – aktualne punkty PvP gracza.
-- `%fepbox_points_formatted%` – punkty z formatowaniem tysięcy.
+- `%fepbox_klan_name%` – nazwa klanu.
+- `%fepbox_klan_color%` – kolor klanu (kod `§x`).
+- `%fepbox_klan_display%` – tag klanu w nawiasach `[` `]` z kolorem, np. `&a[TEST]`.
+- `%fepbox_points%` – punkty PvP gracza.
+- `%fepbox_points_formatted%` – punkty z formatowaniem tysiącowym.
 - `%fepbox_clan_points%` – średnia punktów klanu gracza (zaokrąglona).
-
-Gracz bez klanu otrzymuje tekst z `placeholders.noClanText` w placeholderach klanowych.
 
 ## System punktów i tytułów
 
 - Nowy gracz startuje z `points.startPoints` (domyślnie 1000).
-- Zabójstwo innego gracza:
-  - zabójca dostaje `+delta`, ofiara traci `-delta`,
-  - `delta` zależy od różnicy rankingów (`baseReward + factor*(victimPoints-killerPoints)`), z clampem do `[minChange, maxChange]`,
-  - wysyłany jest Title (np. `💀 ZABÓJSTWO 💀`) oraz Subtitle z dokładną liczbą zdobytych/straconych punktów,
-  - wysyłane są również wiadomości czatu dla zabójcy i ofiary z aktualnym stanem punktów.
+- Zabójstwo:
+  - zabójca: `+delta`, ofiara: `-delta`,
+  - `delta` zależy od różnicy rankingów (parametry `killScaling`),
+  - Title (np. `💀 ZABÓJSTWO 💀`) + Subtitle z dokładną liczbą zdobytych/straconych punktów,
+  - wiadomości czatu dla zabójcy i ofiary z aktualnym stanem punktów.
 - Śmierć bez zabójcy:
-  - gracz traci `selfDeathLoss` dla danej przyczyny (lub `defaultLoss`),
-  - wysyłany jest Title (np. `💀 ŚMIERĆ 💀`) oraz Subtitle z utraconymi punktami,
-  - wiadomość czatu zależna od przyczyny (z fallbackiem na `default`).
+  - kara `selfDeathLoss` (per przyczyna lub `defaultLoss`),
+  - Title (np. `💀 ŚMIERĆ 💀`) + Subtitle z utraconymi punktami,
+  - wiadomości czatu zależne od przyczyny (z fallbackiem).
 
 ## Dane i wydajność
 
-- **Storage**: SQLite – plik `plugins/Fepbox-Klany/data.db`.
+- **Storage**: SQLite (`plugins/Fepbox-Klany/data.db`).
 - Tabele:
-  - `players` – UUID, nazwa, punkty, data utworzenia,
-  - `clans` – UUID klanu, tag, nazwa, kolor, owner UUID, data utworzenia,
+  - `players` – UUID, nazwa, punkty, czas utworzenia,
+  - `clans` – UUID klanu, tag, nazwa, kolor, owner UUID, czas utworzenia,
   - `clan_members` – przypisanie graczy do klanów + rola,
-  - `clan_allies` – relacje sojuszu między klanami (`clan_id`, `ally_clan_id`).
+  - `clan_allies` – relacje sojuszu (`clan_id`, `ally_clan_id`).
 - **Cache**:
-  - Punkty graczy oraz dane klanów są trzymane w pamięci; zapis/odczyt z DB wykonywany jest asynchronicznie.
+  - Punkty graczy i dane klanów trzymane w pamięci, zapisy do DB asynchronicznie (bez blokowania main-thread).
 
 ## Status funkcjonalności
 
-Aktualna wersja pluginu zawiera:
+Aktualna wersja implementuje:
 
-- System punktów PvP z tytułami i komunikatami po śmierci/zabójstwie.
-- Podstawowy system klanów (tworzenie, opuszczanie, wyrzucanie, rozwiązanie, średnia punktów).
-- Proste zapraszanie do klanu (`/klan zapros` – natychmiastowe dołączenie).
-- System sojuszy (`/klan sojusz`), przechowywany w bazie danych.
+- System punktów PvP + tytuły/wiadomości po śmierci/zabójstwie.
+- System klanów z tworzeniem, opuszczaniem, wyrzucaniem, rozwiązaniem i średnią punktów.
+- Proste zapraszanie (`/klan zapros`) i sojusze (`/klan sojusz`).
+- Zmianę koloru klanu (`/klan kolor`).
 - Integrację z PlaceholderAPI.
-- Storage SQLite z async I/O i cache.
+- Storage SQLite z cache i asynchronicznymi operacjami.
 
 ## Licencja
 
-Brak jawnie określonej licencji – traktuj jako kod prywatny do użytku na Twoim serwerze, chyba że zdecydujesz inaczej (np. publikując repozytorium z wybraną licencją).
-
+Brak jawnie określonej licencji – traktuj jako kod prywatny, chyba że zdecydujesz się opublikować go z wybraną licencją.
