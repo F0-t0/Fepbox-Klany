@@ -44,6 +44,32 @@ public class PlayerProfileServiceImpl implements PlayerProfileService {
         return profile;
     }
 
+    @Override
+    public PlayerProfile getProfile(UUID uuid) {
+        PlayerProfile cached = cache.get(uuid);
+        if (cached != null) {
+            return cached;
+        }
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT name, points FROM players WHERE uuid = ?"
+             )) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String storedName = rs.getString("name");
+                    int points = rs.getInt("points");
+                    PlayerProfile profile = new PlayerProfile(uuid, storedName, points);
+                    cache.put(uuid, profile);
+                    return profile;
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Nie udalo sie pobrac profilu gracza " + uuid, e);
+        }
+        return null;
+    }
+
     private PlayerProfile loadProfile(UUID uuid, String name) {
         try (Connection conn = databaseManager.getConnection()) {
             try (PreparedStatement ps = conn.prepareStatement(
@@ -102,4 +128,3 @@ public class PlayerProfileServiceImpl implements PlayerProfileService {
         });
     }
 }
-

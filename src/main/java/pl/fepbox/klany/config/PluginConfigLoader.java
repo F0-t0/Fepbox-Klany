@@ -1,9 +1,13 @@
 package pl.fepbox.klany.config;
 
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import pl.fepbox.klany.FepboxKlanyPlugin;
+import pl.fepbox.klany.util.ColorUtil;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -97,7 +101,9 @@ public class PluginConfigLoader {
         String playerFormatSelf = cfg.getString("ranking.playerFormatSelf", "&6#<position> &f<player_name> &7- &a<points> pkt");
         String clanFormat = cfg.getString("ranking.clanFormat", "&e#<position> &f<clan_display> &7- &b<points> pkt");
         String clanFormatSelf = cfg.getString("ranking.clanFormatSelf", "&6#<position> &f<clan_display> &7- &a<points> pkt");
-        RankingConfig ranking = new RankingConfig(pageSize, playerFormat, playerFormatSelf, clanFormat, clanFormatSelf);
+        long killCooldown = cfg.getLong("ranking.killCooldownSeconds", 1800);
+        boolean ignoreSameIp = cfg.getBoolean("ranking.ignoreSameIp", true);
+        RankingConfig ranking = new RankingConfig(pageSize, playerFormat, playerFormatSelf, clanFormat, clanFormatSelf, killCooldown, ignoreSameIp);
 
         String noClanText = cfg.getString("placeholders.noClanText", "-");
         PlaceholderConfig placeholders = new PlaceholderConfig(noClanText);
@@ -106,7 +112,91 @@ public class PluginConfigLoader {
         String storageFile = cfg.getString("storage.file", "plugins/Fepbox-Klany/data.db");
         StorageConfig storage = new StorageConfig(storageType, storageFile);
 
-        return new PluginConfig(limits, filter, points, ui, ranking, placeholders, storage);
+        ClanSettingsConfig clanSettings = loadClanSettings(cfg);
+
+        return new PluginConfig(limits, filter, points, ui, ranking, placeholders, storage, clanSettings);
+    }
+
+    private ClanSettingsConfig loadClanSettings(FileConfiguration cfg) {
+        boolean defaultPvp = cfg.getBoolean("clan.pvpDefault", true);
+        String guiTitle = cfg.getString("clan.upgrades.guiTitle", "<YELLOW>Ulepszenia klanu");
+
+        ConfigurationSection memberSec = cfg.getConfigurationSection("clan.upgrades.member");
+        UpgradeValues member = readUpgrade(memberSec, 10, 2, 5, List.of(8, 12, 16, 20, 24),
+                "<YELLOW>Limit czlonkow", List.of("<GRAY>Zwieksza maksymalna liczbe czlonkow klanu"));
+
+        ConfigurationSection allySec = cfg.getConfigurationSection("clan.upgrades.ally");
+        UpgradeValues ally = readUpgrade(allySec, 1, 1, 5, List.of(6, 10, 14, 18, 22),
+                "<GREEN>Limit sojuszy", List.of("<GRAY>Zwieksza liczbe sojusznikow"));
+
+        String infoTitle = cfg.getString("clan.info.title", "<GREEN>* Informacje o klanie *");
+        List<String> infoLines = cfg.getStringList("clan.info.lines");
+        if (infoLines.isEmpty()) {
+            infoLines = List.of(
+                    "<GOLD>Nazwa: <YELLOW><clan_name>",
+                    "<GOLD>Punkty: <YELLOW><clan_points>",
+                    "<GOLD>Lider: <YELLOW><clan_leader>",
+                    "<GOLD>Zastepcy: <YELLOW><clan_officers>",
+                    "<GOLD>Czlonkowie (<members_used>/<members_limit>): <YELLOW><clan_members>",
+                    "<GOLD>Sojusznicy (<ally_used>/<ally_limit>): <YELLOW><clan_allies>",
+                    "<GOLD>PvP w klanie: <YELLOW><clan_pvp>"
+            );
+        }
+
+        ItemStack currency = cfg.getItemStack("clan.currency");
+        if (currency == null) {
+            currency = new ItemStack(Material.GOLD_INGOT);
+            ItemMeta meta = currency.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName(ColorUtil.colorize("<GOLD>Moneta klanowa"));
+                meta.setLore(List.of(ColorUtil.colorize("<YELLOW>Uzywana do ulepszen klanu")));
+                currency.setItemMeta(meta);
+            }
+            cfg.set("clan.currency", currency);
+            plugin.saveConfig();
+        }
+
+        ClanSettingsConfig.ClanInfoConfig info = new ClanSettingsConfig.ClanInfoConfig(infoTitle, infoLines);
+
+        ClanSettingsConfig.UpgradeSettings memberCfg = new ClanSettingsConfig.UpgradeSettings(
+                member.baseLimit, member.step, member.maxLevel, member.costs, member.itemName, member.itemLore);
+        ClanSettingsConfig.UpgradeSettings allyCfg = new ClanSettingsConfig.UpgradeSettings(
+                ally.baseLimit, ally.step, ally.maxLevel, ally.costs, ally.itemName, ally.itemLore);
+
+        return new ClanSettingsConfig(defaultPvp, memberCfg, allyCfg, guiTitle, info, currency);
+    }
+
+    private UpgradeValues readUpgrade(ConfigurationSection sec,
+                                      int defBase,
+                                      int defStep,
+                                      int defMax,
+                                      List<Integer> defCosts,
+                                      String defName,
+                                      List<String> defLore) {
+        int base = defBase;
+        int step = defStep;
+        int max = defMax;
+        List<Integer> costs = defCosts;
+        String name = defName;
+        List<String> lore = defLore;
+        if (sec != null) {
+            base = sec.getInt("baseLimit", defBase);
+            step = sec.getInt("step", defStep);
+            max = sec.getInt("maxLevel", defMax);
+            List<Integer> loadedCosts = sec.getIntegerList("costs");
+            if (!loadedCosts.isEmpty()) {
+                costs = loadedCosts;
+            }
+            name = sec.getString("itemName", defName);
+            List<String> loadedLore = sec.getStringList("itemLore");
+            if (!loadedLore.isEmpty()) {
+                lore = loadedLore;
+            }
+        }
+        return new UpgradeValues(base, step, max, costs, name, lore);
+    }
+
+    private record UpgradeValues(int baseLimit, int step, int maxLevel, List<Integer> costs, String itemName,
+                                 List<String> itemLore) {
     }
 }
-

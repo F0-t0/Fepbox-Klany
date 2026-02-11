@@ -1,6 +1,6 @@
 name: Fepbox-Klany
 main: pl.fepbox.klany.FepboxKlanyPlugin
-version: 1.0.0
+version: 1.1.0
 api-version: '1.21'
 author: Fepbox
 description: System klanów i ranking PvP
@@ -50,4 +50,5 @@ permissions:
   fepboxklany.reload:
     description: Pozwala przeładować konfigurację pluginu.
     default: op
+
 

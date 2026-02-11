@@ -1,0 +1,17 @@
+ui:
+  messages:
+    friendlyFireBlocked: "<RED>? PvP w klanie jest wylaczone!"
+    kill:
+      killer: "<GREEN>? Pokonales <WHITE><victim_name><GREEN>! <DARK_GRAY>(+<delta_killer> | <AQUA><points_killer_after> pkt)"
+      victim: "<RED>? Zginales z rak <WHITE><killer_name><RED>! <DARK_GRAY>(-<delta_victim> | <AQUA><points_victim_after> pkt)"
+      broadcast: "<DARK_GRAY>[?] <WHITE><killer_name> <GRAY>+<delta_killer> vs <WHITE><victim_name> <GRAY>-<delta_victim>"
+      cooldown: "<YELLOW>? <victim_name> ma jeszcze cooldown na zabojstwo - brak punktow."
+      sameIp: "<RED>? Zabojstwo nie liczy sie (to samo IP)."
+    selfDeath:
+      default: "<RED>? Zginales! <DARK_GRAY>(-<delta_victim> | <AQUA><points_victim_after> pkt)"
+      causes:
+        FALL: "<RED>? Spadles z wysoka! <DARK_GRAY>(-<delta_victim>)"
+        LAVA: "<GOLD>? Wpadles do lawy! <DARK_GRAY>(-<delta_victim>)"
+        DROWNING: "<AQUA>? Utonales! <DARK_GRAY>(-<delta_victim>)"
+      broadcast:
+        default: "<DARK_GRAY>[?] <WHITE><victim_name> <GRAY>-<delta_victim> pkt"

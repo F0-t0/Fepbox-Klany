@@ -5,6 +5,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.event.entity.EntityDamageEvent;
 import pl.fepbox.klany.config.PointsConfig;
 import pl.fepbox.klany.db.DatabaseManager;
+import pl.fepbox.klany.config.RankingConfig;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -20,13 +21,15 @@ public class PointsServiceImpl implements PointsService {
     private final Plugin plugin;
     private final DatabaseManager databaseManager;
     private final PointsConfig config;
+    private final RankingConfig rankingConfig;
     private final Map<UUID, Integer> cache = new ConcurrentHashMap<>();
     private final Map<String, Long> lastKillTimestamps = new ConcurrentHashMap<>();
 
-    public PointsServiceImpl(Plugin plugin, DatabaseManager databaseManager, PointsConfig config) {
+    public PointsServiceImpl(Plugin plugin, DatabaseManager databaseManager, PointsConfig config, RankingConfig rankingConfig) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.config = config;
+        this.rankingConfig = rankingConfig;
     }
 
     @Override
@@ -71,7 +74,7 @@ public class PointsServiceImpl implements PointsService {
 
         String key = killerUuid.toString() + ":" + victimUuid;
         long now = System.currentTimeMillis();
-        long windowMillis = 30L * 60L * 1000L; // 30 minut
+        long windowMillis = rankingConfig.getKillCooldownSeconds() * 1000L;
         Long last = lastKillTimestamps.get(key);
         if (last != null && (now - last) < windowMillis) {
             return new KillResult(0, 0, killerPoints, victimPoints);

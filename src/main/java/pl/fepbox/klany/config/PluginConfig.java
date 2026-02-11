@@ -9,6 +9,7 @@ public class PluginConfig {
     private final RankingConfig ranking;
     private final PlaceholderConfig placeholders;
     private final StorageConfig storage;
+    private final ClanSettingsConfig clanSettings;
 
     public PluginConfig(
             LimitsConfig limits,
@@ -17,7 +18,8 @@ public class PluginConfig {
             UIConfig ui,
             RankingConfig ranking,
             PlaceholderConfig placeholders,
-            StorageConfig storage
+            StorageConfig storage,
+            ClanSettingsConfig clanSettings
     ) {
         this.limits = limits;
         this.filter = filter;
@@ -26,6 +28,7 @@ public class PluginConfig {
         this.ranking = ranking;
         this.placeholders = placeholders;
         this.storage = storage;
+        this.clanSettings = clanSettings;
     }
 
     public LimitsConfig getLimits() {
@@ -55,5 +58,8 @@ public class PluginConfig {
     public StorageConfig getStorage() {
         return storage;
     }
-}
 
+    public ClanSettingsConfig getClanSettings() {
+        return clanSettings;
+    }
+}

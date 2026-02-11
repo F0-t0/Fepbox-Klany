@@ -33,36 +33,62 @@ points:
       CONTACT: 10
 
 ui:
-  skullSymbol: "💀"
+  skullSymbol: "\uD83D\uDC80"
   titles:
     kill:
-      title: "<symbol> ZABÓJSTWO <symbol>"
+      title: "<symbol> ZABOJSTWO <symbol>"
       subtitleKiller: "+<delta_killer> | <points_killer_after> pkt"
       subtitleVictim: "-<delta_victim> | <points_victim_after> pkt"
     selfDeath:
-      title: "<symbol> ŚMIERĆ <symbol>"
+      title: "<symbol> SMIERC <symbol>"
       subtitle: "-<delta_victim> | <points_victim_after> pkt"
     timings:
       fadeIn: 10
       stay: 40
       fadeOut: 10
   messages:
-    kill:
-      killer: "&aZabiłeś &f<victim_name>&a! &7(+<delta_killer> pkt, masz teraz &f<points_killer_after>&7)"
-      victim: "&cZginąłeś z rąk &f<killer_name>&c! &7(-<delta_victim> pkt, masz teraz &f<points_victim_after>&7)"
-    selfDeath:
-      default: "&cZginąłeś! &7(-<delta_victim> pkt, masz teraz &f<points_victim_after>&7)"
-      causes:
-        FALL: "&cSpadłeś z wysoka! &7(-<delta_victim> pkt)"
-        LAVA: "&cWpadłeś do lawy! &7(-<delta_victim> pkt)"
-        DROWNING: "&cUtonąłeś! &7(-<delta_victim> pkt)"
+    # przeniesione do messages.yml
+
+clan:
+  pvpDefault: true
+  upgrades:
+    guiTitle: "<YELLOW>Ulepszenia klanu"
+    member:
+      baseLimit: 8
+      step: 2
+      maxLevel: 5
+      costs: [8, 12, 16, 20, 24]
+      itemName: "<GOLD>Limit czlonkow"
+      itemLore:
+        - "<GRAY>Zwieksza maksymalna liczbe czlonkow klanu"
+    ally:
+      baseLimit: 1
+      step: 1
+      maxLevel: 5
+      costs: [6, 10, 14, 18, 22]
+      itemName: "<GREEN>Limit sojuszy"
+      itemLore:
+        - "<GRAY>Zwieksza liczbe sojusznikow"
+  info:
+    title: "<DARK_GREEN>\u25c6 <GREEN>Informacje o klanie"
+    lines:
+      - "<GOLD>\u2606 <WHITE>Nazwa: <YELLOW><clan_name> <GRAY>[<clan_tag>]"
+      - "<AQUA>\u2736 <WHITE>Punkty: <AQUA><clan_points>"
+      - "<YELLOW>\u265b <WHITE>Lider: <GOLD><clan_leader>"
+      - "<GREEN>\u27a4 <WHITE>Zastepcy: <clan_officers>"
+      - "<GOLD>\ud83d\udc65 <WHITE>Czlonkowie: <GOLD><members_used>/<members_limit> <GRAY><clan_members>"
+      - "<GREEN>\u2694 <WHITE>Sojusznicy: <GREEN><ally_used>/<ally_limit> <GRAY><clan_allies>"
+      - "<RED>\u2727 <WHITE>PvP: <clan_pvp>"
+  # clan.currency automatycznie zapisze sie po pierwszym uruchomieniu / komendzie setcoin
 
 ranking:
   pageSize: 10
-  playerFormat: "&e#<position> &f<player_name> &7- &b<points> pkt"
-  playerFormatSelf: "&6#<position> &f<player_name> &7- &a<points> pkt"
-  clanFormat: "&e#<position> &f<clan_display> &7- &b<points> pkt"
-  clanFormatSelf: "&6#<position> &f<clan_display> &7- &a<points> pkt"
+  playerFormat: "<YELLOW>#<position> <WHITE><player_name> <GRAY>- <AQUA><points> pkt"
+  playerFormatSelf: "<GOLD>#<position> <WHITE><player_name> <GRAY>- <GREEN><points> pkt"
+  clanFormat: "<YELLOW>#<position> <WHITE><clan_display> <GRAY>- <AQUA><points> pkt"
+  clanFormatSelf: "<GOLD>#<position> <WHITE><clan_display> <GRAY>- <GREEN><points> pkt"
+  killCooldownSeconds: 1800
+  ignoreSameIp: true
 
 placeholders:
   noClanText: "-"
@@ -70,4 +96,5 @@ placeholders:
 storage:
   type: "sqlite"
   file: "plugins/Fepbox-Klany/data.db"
+
 
